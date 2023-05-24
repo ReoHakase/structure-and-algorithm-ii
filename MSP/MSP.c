@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "MSP.h"
+#define INT_MIN -2147483648
 
 /* input data */
 extern unsigned num;
@@ -13,6 +14,7 @@ int main()
 
 int maxSubarray(unsigned from, unsigned num)
 {
+  printf("Fn called >> from: %d, num: %d\n", from, num);
   /* stop recursive call */
   // Stop once there is no more data to divide
   if (num == 1)
@@ -36,57 +38,68 @@ int maxSubarray(unsigned from, unsigned num)
 
   /* divide */
   // Divide the data into two halves
-  unsigned leftNum = num / 2;
-  unsigned rightNum = num - leftNum;
-  int leftMax = maxSubarray(from, leftNum);
-  int rightMax = maxSubarray(from + leftNum, rightNum);
+  int leftSubArrayBeginning = (int)from;
+  int leftSubArrayLength = (int)num / 2;
+  int leftSubArrayEnd = leftSubArrayBeginning + (leftSubArrayLength - 1);
+  int rightSubArrayBeginning = leftSubArrayBeginning + leftSubArrayLength;
+  int rightSubArrayLength = (int)num - leftSubArrayLength;
+  int rightSubArrayEnd = rightSubArrayBeginning + (rightSubArrayLength - 1);
+  printf("Calculating leftMax\n");
+  int leftOnlyMax = maxSubarray(leftSubArrayBeginning, leftSubArrayLength);
+  printf("Calculating rightMax\n");
+  int rightOnlyMax = maxSubarray(rightSubArrayBeginning, rightSubArrayLength);
 
   /* conquer */
   // Find the maximum subarray that crosses the midpoint
   // Since returning the indice is not required, we can just return the sum
   // of the left and right maximum subarrays
+  printf("Calc mid >> from: %d, num: %d\n", from, num);
 
   // Find the maximum sum of subarray that ends at the end of the left half
-  int leftMaxSum = 0;
+  printf("Calc leftCrossingMax >> start: %d, end: %d\n", leftSubArrayEnd, leftSubArrayBeginning);
+  int leftCrossingMax = INT_MIN;
   {
-    int leftSum = 0;
-    for (unsigned i = from + leftNum - 1; i >= from; i--)
+    int sum = 0;
+    for (int i = leftSubArrayEnd; i >= leftSubArrayBeginning; i--)
     {
-      leftSum += data[i];
-      if (leftSum > leftMaxSum)
+      printf("i: %d\n", i);
+      sum += data[i];
+      if (sum > leftCrossingMax)
       {
-        leftMaxSum = leftSum;
+        leftCrossingMax = sum;
       }
     }
   }
 
   // Find the maximum sum of subarray that starts at the beginning of the right half
-  int rightMaxSum = 0;
+  printf("Calc rightCrossingMax >> start: %d, end: %d\n", rightSubArrayBeginning, rightSubArrayEnd);
+  int rightCrossingMax = INT_MIN;
   {
-    int rightSum = 0;
-    for (unsigned i = from + leftNum; i < from + num; i++)
+    int sum = 0;
+    for (int i = rightSubArrayBeginning; i <= rightSubArrayEnd; i++)
     {
-      rightSum += data[i];
-      if (rightSum > rightMaxSum)
+      printf("i: %d\n", i);
+      sum += data[i];
+      if (sum > rightCrossingMax)
       {
-        rightMaxSum = rightSum;
+        rightCrossingMax = sum;
       }
     }
   }
 
   // Combine the two maximum sums
-  int midMax = leftMaxSum + rightMaxSum;
+  int crossingMax = leftCrossingMax + rightCrossingMax;
 
   /* combine */
   // Return the maximum of the three maximums
-  int max = leftMax;
-  if (rightMax > max)
+  int max = leftOnlyMax;
+  if (rightOnlyMax > max)
   {
-    max = rightMax;
+    max = rightOnlyMax;
   }
-  if (midMax > max)
+  if (crossingMax > max)
   {
-    max = midMax;
+    max = crossingMax;
   }
   return max;
 }

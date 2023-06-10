@@ -27,6 +27,10 @@
     {
       "name": "凸包",
       "path": "../ConvexHull"
+    },
+    {
+      "name": "赤黒木",
+      "path": "../RedBlackTree"
     }
   ],
   "settings": {

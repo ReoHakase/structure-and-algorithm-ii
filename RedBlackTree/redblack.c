@@ -18,12 +18,32 @@ RedBlackNode *allocateRedBlackNode(int value, RedBlackNodeColor color)
   return node;
 }
 
+// 指定されたノードとその子孫を全て解放する
+// 指定された親のノードが持つ参照も削除する
 void freeRedBlackNode(RedBlackNode *node)
 {
   if (node == NULL)
+  {
     return;
+  }
+
+  // 子に対して再起呼び出し
   freeRedBlackNode(node->left);
   freeRedBlackNode(node->right);
+
+  // 削除するノードの親が持つ参照を削除する
+  if (node->parent != NULL)
+  {
+    if (node->parent->left == node)
+    {
+      node->parent->left = NULL;
+    }
+    if (node->parent->right == node)
+    {
+      node->parent->right = NULL;
+    }
+  }
+
   free(node);
 }
 
@@ -190,73 +210,95 @@ RedBlackNode *insertRedBlackNode(RedBlackNode *root, int value)
     }
   }
 
-  // 挿入後の木が色の制約を満たしているかを調べる。
-  // 調べる対象は新規ノードとその親ノードである。
-  // もし親ノードが黒だったら、木の色の制約を満たしているので終了する。
-  if (newNode->parent->color == Black)
-    return root;
-
-  // 親ノードが赤だったら、木の色の制約を満たすように修正する。
-  // 親が根の場合、親を黒にする。
-  if (newNode->parent == root)
+  // 修正は親に伝播する。
+  while (newNode->parent != NULL)
   {
-    newNode->parent->color = Black;
-    return root;
-  }
 
-  // return root;
-  // 親が根でない場合、祖先との大小関係に合わせて回転を行う。
-  // この時、実行前の木は色制約を満たしているから、それぞれ親は赤、祖父は黒である。
+    // 挿入後の木が色の制約を満たしているかを調べる。
+    // 調べる対象は新規ノードとその親ノードである。
+    // もし親ノードが黒だったら、木の色の制約を満たしているので終了する。
+    if (newNode->parent->color == Black)
+      break;
 
-  NodeComparisonResult newToParent = compareNode(newNode->parent, newNode);
-  NodeComparisonResult parentToGrandParent = compareNode(newNode->parent->parent, newNode->parent);
-
-  // 1. 新規ノード < 親 < 祖父 の場合、右回転を行い、新規ノードを黒色にする。
-  if (newToParent == Less && parentToGrandParent == Less)
-  {
-    newNode->color = Black;
-    rotateNodes(newNode->parent->parent, ToRight);
-    return root;
-  }
-
-  // 2. 新規ノード < 親 かつ 親 > 祖父 の場合、親で右回転したのち、祖父で左回転を行い、元々の親ノードを黒色にする。
-  if (newToParent == Less && parentToGrandParent == Greater)
-  {
-    newNode->parent->color = Black;
-    rotateNodes(newNode->parent, ToRight);
-    rotateNodes(newNode->parent, ToLeft);
-    return root;
-  }
-
-  // 3. 新規ノード > 親 かつ 親 < 祖父 の場合、親で左回転したのち、祖父で右回転を行い、元々の親ノードを黒色にする。
-  if (newToParent == Less && parentToGrandParent == Greater)
-  {
-    newNode->parent->color = Black;
-    rotateNodes(newNode->parent, ToLeft);
-    rotateNodes(newNode->parent, ToRight);
-    return root;
-  }
-
-  // 4. 新規ノード > 親 > 祖父 の場合、左x回転を行い、新規ノードを黒色にする。
-  if (newToParent == Greater && parentToGrandParent == Greater)
-  {
-    // printf(">>> 4. 新規ノード > 親 > 祖父 の場合\n");
-    newNode->color = Black;
-    RedBlackNode *source = newNode->parent->parent;
-    RedBlackNode *newSource = rotateNodes(source, ToLeft);
-    if (source == root)
+    // 親ノードが赤だったら、木の色の制約を満たすように修正する。
+    // 親が根の場合、親を黒にする。
+    if (newNode->parent == root)
     {
-      // 根を回転させた場合、新しい根を設定する。
-      root = newSource;
-      // 新しい根を黒に設定する
-      root->color = Black;
+      newNode->parent->color = Black;
+      break;
     }
-    return root;
+
+    // 親が根でない場合、祖先との大小関係に合わせて回転を行う。
+    // この時、実行前の木は色制約を満たしているから、それぞれ親は赤、祖父は黒である。
+
+    NodeComparisonResult newToParent = compareNode(newNode->parent, newNode);
+    NodeComparisonResult parentToGrandParent = compareNode(newNode->parent->parent, newNode->parent);
+
+    // 1. 新規ノード < 親 < 祖父 の場合、右回転を行い、新規ノードを黒色にする。
+    if (newToParent == Less && parentToGrandParent == Less)
+    {
+      newNode->color = Black;
+      RedBlackNode *source = newNode->parent->parent;
+      RedBlackNode *newSource = rotateNodes(source, ToRight);
+      if (source == root)
+      {
+        // 根を回転させた場合、新しい根を設定する。
+        root = newSource;
+        // 新しい根を黒に設定する
+        root->color = Black;
+      }
+      // 親に対しても修正を行う
+      newNode = newNode->parent;
+      continue;
+    }
+
+    // 2. 新規ノード < 親 かつ 親 > 祖父 の場合、親で右回転したのち、祖父で左回転を行い、元々の親ノードを黒色にする。
+    if (newToParent == Less && parentToGrandParent == Greater)
+    {
+      newNode->parent->color = Black;
+      rotateNodes(newNode->parent, ToRight);
+      rotateNodes(newNode->parent, ToLeft);
+      // 親に対しても修正を行う
+      newNode = newNode->parent;
+      continue;
+    }
+
+    // 3. 新規ノード > 親 かつ 親 < 祖父 の場合、親で左回転したのち、祖父で右回転を行い、元々の親ノードを黒色にする。
+    if (newToParent == Less && parentToGrandParent == Greater)
+    {
+      newNode->parent->color = Black;
+      rotateNodes(newNode->parent, ToLeft);
+      rotateNodes(newNode->parent, ToRight);
+      // 親に対しても修正を行う
+      newNode = newNode->parent;
+      continue;
+    }
+
+    // 4. 新規ノード > 親 > 祖父 の場合、左x回転を行い、新規ノードを黒色にする。
+    if (newToParent == Greater && parentToGrandParent == Greater)
+    {
+      newNode->color = Black;
+      RedBlackNode *source = newNode->parent->parent;
+      RedBlackNode *newSource = rotateNodes(source, ToLeft);
+      if (source == root)
+      {
+        // 根を回転させた場合、新しい根を設定する。
+        root = newSource;
+        // 新しい根を黒に設定する
+        root->color = Black;
+      }
+      // 親に対しても修正を行う
+      newNode = newNode->parent;
+      continue;
+    }
   }
+
   return root;
 }
 
 // 値 value を持つノードを探査する
+// 見つかった場合、その値を含むノードを返す
+// 見つからなかった場合、 NULL を返す
 RedBlackNode *searchRedBlackNode(RedBlackNode *root, int value)
 {
   if (root == NULL)

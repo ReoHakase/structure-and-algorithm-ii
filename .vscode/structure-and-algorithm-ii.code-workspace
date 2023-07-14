@@ -31,6 +31,10 @@
     {
       "name": "赤黒木",
       "path": "../RedBlackTree"
+    },
+    {
+      "name": "AVL木",
+      "path": "../AVLTree"
     }
   ],
   "settings": {
